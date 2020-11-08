@@ -14,5 +14,9 @@ RUN mkdir /chan
 WORKDIR /chan
 COPY ./chan /chan
 
+RUN mkdir -p /vol/web/media
+RUN mkdir -p /vol/web/static
 RUN adduser -D embong
+RUN chown -R embong:embong /vol/
+RUN chmod -R 755 /vol/web
 USER embong
