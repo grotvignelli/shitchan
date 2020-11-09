@@ -15,7 +15,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 # TODO ADD TEST FOR RETRIEVING AND UPDATING USER PROFILE
-# TODO ADD TEST FOR CHANGE PASSWORD TO CHANGE-PASSWORD ENDPOINT
 
 SIGNUP_USER_URL = reverse('user:signup')
 TOKEN_URL = reverse('user:signin')
@@ -187,6 +186,19 @@ class PublicUserApiTests(TestCase):
         payload = {
             'username': 'testuser',
             'password': 'wrong'
+        }
+
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertNotIn('token', res.data)
+
+    def test_create_token_no_user(self):
+        """Test that creating token with no user existing
+        is raises 400 status code"""
+        payload = {
+            'username': 'testuser',
+            'password': 'testpass'
         }
 
         res = self.client.post(TOKEN_URL, payload)
