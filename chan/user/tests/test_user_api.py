@@ -14,8 +14,13 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
+# TODO ADD TEST FOR RETRIEVING AND UPDATING USER PROFILE
+# TODO ADD TEST FOR CHANGE PASSWORD TO CHANGE-PASSWORD ENDPOINT
 
 SIGNUP_USER_URL = reverse('user:signup')
+TOKEN_URL = reverse('user:signin')
+PROFILE_URL = reverse('user:profile')
+CHANGE_PASSWORD_URL = reverse('user:change-password')
 
 
 def create_payload(**params):
@@ -162,3 +167,170 @@ class PublicUserApiTests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(is_exists)
+
+    def test_create_token_for_user(self):
+        """Test create a token for authenticated user"""
+        payload = create_payload()
+        create_user(**payload)
+
+        res = self.client.post(TOKEN_URL, {
+            'username': payload['username'],
+            'password': payload['password'],
+        })
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('token', res.data)
+
+    def test_create_token_with_invalid_credentials(self):
+        """Test create a token for user with invalid credentials"""
+        create_user(**create_payload())
+        payload = {
+            'username': 'testuser',
+            'password': 'wrong'
+        }
+
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertNotIn('token', res.data)
+
+    def test_retrieve_user_profile_unauthorized(self):
+        """Test retrieve user profile with no authenticated user"""
+        res = self.client.get(PROFILE_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class PrivateUserApiTests(TestCase):
+    """Test access private user API (with authenticated user)"""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = create_user(**create_payload())
+        self.client.force_authenticate(user=self.user)
+
+    def tearDown(self):
+        directory = 'uploads/avatar'
+        path = os.path.join(settings.MEDIA_ROOT, directory)
+
+        shutil.rmtree(path, ignore_errors=True)
+
+    def test_retrieve_user_profile(self):
+        """Test that retrieving user profile with authenticated user"""
+        res = self.client.get(PROFILE_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['username'], self.user.username)
+        self.assertEqual(res.data['email'], self.user.email)
+
+    def test_post_method_not_allowed(self):
+        """Test that POST method on user profile endpoint is not allowed"""
+        res = self.client.post(PROFILE_URL, {})
+
+        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_update_user_profile(self):
+        """Test updating user profile successful"""
+        payload = {
+            'username': 'newname',
+            'email': 'newemail@gmail.com'
+        }
+
+        res = self.client.patch(PROFILE_URL, payload)
+        self.user.refresh_from_db()
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.user.username, payload['username'])
+        self.assertEqual(self.user.email, payload['email'])
+
+    @patch('uuid.uuid4')
+    def test_update_avatar_user(self, mock_uuid):
+        """Test updating avatar profile user is successful"""
+        with tempfile.NamedTemporaryFile(suffix='.jpg') as ntf:
+            uuid = 'test-uuid'
+            mock_uuid.return_value = uuid
+
+            image = Image.new('RGB', (100, 100))
+            image.save(ntf, format='JPEG')
+            ntf.seek(0)
+
+            res = self.client.patch(
+                PROFILE_URL, {'avatar': ntf}, format='multipart'
+            )
+            filename = f'uploads/avatar/{uuid}.jpg'
+            self.user.refresh_from_db()
+
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
+            self.assertEqual(self.user.avatar.name, filename)
+
+    def test_update_password_not_allowed(self):
+        """Test that updating password in profile endpoint is not allowed"""
+        new_pass = 'newpass'
+        self.client.patch(
+            PROFILE_URL, {'password': new_pass}
+        )
+        self.user.refresh_from_db()
+
+        self.assertFalse(self.user.check_password(new_pass))
+        # TODO how to make response status code to be 400 bad request
+
+    def test_change_password_endpoint(self):
+        """Test that change password in change-password endpoint is worked"""
+        payload = {
+            'old_password': 'testpass',
+            'new_password': 'newpass',
+            'confirm_password': 'newpass'
+        }
+
+        res = self.client.patch(CHANGE_PASSWORD_URL, payload)
+        self.user.refresh_from_db()
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(self.user.check_password(payload['new_password']))
+        self.assertNotIn('new_password', res.data)
+        self.assertNotIn('confirm_password', res.data)
+
+    def test_change_password_invalid_old_password(self):
+        """Test that change password with invalid old password
+        is raises error"""
+        payload = {
+            'old_password': 'wrong',
+            'new_password': 'newpass',
+            'confirm_password': 'newpass'
+        }
+
+        res = self.client.patch(CHANGE_PASSWORD_URL, payload)
+        self.user.refresh_from_db()
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(self.user.check_password(payload['new_password']))
+
+    def test_change_password_invalid_confirm_password(self):
+        """Test that change password with different confirm password
+        is raises error"""
+        payload = {
+            'old_password': 'testpass',
+            'new_password': 'newpass',
+            'confirm_password': 'wrong'
+        }
+
+        res = self.client.patch(CHANGE_PASSWORD_URL, payload)
+        self.user.refresh_from_db()
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(self.user.check_password(payload['new_password']))
+
+    def test_change_password_too_short(self):
+        """Test that change password with less than 6 character
+        is raises error"""
+        payload = {
+            'old_password': 'testpass',
+            'new_password': 'pw',
+            'confirm_password': 'pw'
+        }
+
+        res = self.client.patch(CHANGE_PASSWORD_URL, payload)
+        self.user.refresh_from_db()
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(self.user.check_password(payload['new_password']))
