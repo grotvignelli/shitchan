@@ -206,6 +206,14 @@ class PublicUserApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertNotIn('token', res.data)
 
+    def test_create_token_missing_fields(self):
+        """Test that creating token with missing fields required
+        is raises error"""
+        res = self.client.post(TOKEN_URL, {'username': 'user', 'password': ''})
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertNotIn('token', res.data)
+
     def test_retrieve_user_profile_unauthorized(self):
         """Test retrieve user profile with no authenticated user"""
         res = self.client.get(PROFILE_URL)
