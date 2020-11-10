@@ -14,7 +14,6 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
-# TODO ADD TEST FOR RETRIEVING AND UPDATING USER PROFILE
 
 SIGNUP_USER_URL = reverse('user:signup')
 TOKEN_URL = reverse('user:signin')

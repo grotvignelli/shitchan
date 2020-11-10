@@ -7,6 +7,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
     BaseUserManager
 )
+from django.conf import settings
 
 
 def avatar_file_path(instance, filename):

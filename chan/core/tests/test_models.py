@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 
 from core import models
 
-# TODO ADD TEST FOR USER DEFAULT AVATAR (WITHOUT UPLOAD PIC)
 
 SAMPLE_EMAIL = 'test@gmail.com'
 SAMPLE_USERNAME = 'testuser'
