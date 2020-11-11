@@ -13,7 +13,7 @@ SAMPLE_USERNAME = 'testuser'
 SAMPLE_PASS = 'testpass'
 
 
-class CustomUserModelTests(TestCase):
+class ModelTests(TestCase):
     """Test custom user model for user objects in db"""
 
     def test_create_user_successful(self):
@@ -102,3 +102,22 @@ class CustomUserModelTests(TestCase):
 
         self.assertTrue(user.is_staff)
         self.assertTrue(user.is_superuser)
+
+    def test_create_board(self):
+        """Test creating a board"""
+        user = get_user_model().objects.create_user(
+            username='testuser',
+            email='test@gmail.com',
+            password='testpass'
+        )
+        title = 'political'
+        code = 'pl'
+        board = models.Board.objects.create(
+            title=title, code=code, user=user
+        )
+        is_exists = models.Board.objects.filter(
+            title=title, code=code, user=user
+        ).exists()
+
+        self.assertEqual(str(board), title)
+        self.assertTrue(is_exists)
