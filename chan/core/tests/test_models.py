@@ -103,21 +103,58 @@ class ModelTests(TestCase):
         self.assertTrue(user.is_staff)
         self.assertTrue(user.is_superuser)
 
-    def test_create_board(self):
-        """Test creating a board"""
-        user = get_user_model().objects.create_user(
-            username='testuser',
-            email='test@gmail.com',
+    # ** SHITCHAN MODEL TESTS **
+
+
+class ShitchanModelTests(TestCase):
+    """Tests for Shitchan model in the database"""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username=SAMPLE_USERNAME,
+            email=SAMPLE_EMAIL,
+            password=SAMPLE_PASS
+        )
+        self.admin = get_user_model().objects.create_superuser(
+            username='admin',
+            email='admin@gmail.com',
             password='testpass'
         )
+        self.board = models.Board.objects.create(
+            title='test board',
+            code='tb',
+            user=self.admin
+        )
+
+    def test_create_board(self):
+        """Test creating a board in the database"""
         title = 'political'
         code = 'pl'
         board = models.Board.objects.create(
-            title=title, code=code, user=user
+            title=title, code=code, user=self.admin
         )
         is_exists = models.Board.objects.filter(
-            title=title, code=code, user=user
+            title=title, code=code, user=self.admin
         ).exists()
 
         self.assertEqual(str(board), title)
         self.assertTrue(is_exists)
+
+    def test_create_thread(self):
+        """Test creating a thread in the database"""
+        title = 'test thread'
+        content = 'Neque porro quisquam est qui dolorem ipsum quia \
+                   dolor sit amet, consectetur, adipisci velit...'
+        thread = models.Thread.objects.create(
+            title=title,
+            content=content,
+            user=self.user,
+            board=self.board
+        )
+        is_exists = models.Thread.objects.filter(
+            user=self.user,
+            title=title
+        ).exists()
+
+        self.assertTrue(is_exists)
+        self.assertEqual(str(thread), title)

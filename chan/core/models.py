@@ -18,6 +18,14 @@ def avatar_file_path(instance, filename):
     return os.path.join('uploads/avatar/', filename)
 
 
+def thread_image_file_path(instance, filename):
+    """Generating a file path for avatar image"""
+    ext = filename.split('.')[-1]
+    filename = f'{uuid.uuid4()}.{ext}'
+
+    return os.path.join('uploads/thread/', filename)
+
+
 class UserManager(BaseUserManager):
     """Custom user model manager to support custom user model"""
 
@@ -67,14 +75,38 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ['email', ]
 
 
+# ** SHITCHAN MODELS
+
+
 class Board(models.Model):
     """Board model in the system"""
-    title = models.CharField(max_length=255, unique=True)
-    code = models.CharField(max_length=4, unique=True)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE
     )
+    title = models.CharField(max_length=255, unique=True)
+    code = models.CharField(max_length=4, unique=True)
     date_created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+
+class Thread(models.Model):
+    """Thread model in the system"""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE
+    )
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    image = models.ImageField(upload_to=thread_image_file_path, null=True)
+    upvote = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name='user_upvote'
+    )
+    downvote = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name='user_downvote'
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    board = models.ForeignKey('Board', on_delete=models.CASCADE)
 
     def __str__(self):
         return self.title
